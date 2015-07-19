@@ -2,15 +2,23 @@
 <html>
 <head>
   <title>Orbit.js Tests</title>
-  <link rel="stylesheet" href="/assets/qunit.css" media="all">
+  <link rel="stylesheet" href="/testem/qunit.css" media="all">
 </head>
 <body>
   <div id="qunit"></div>
   <div id="qunit-fixture"></div>
-  <script src="/assets/vendor.js"></script>
-  <script src="/assets/qunit.js"></script>
-  <script src="/assets/loader.js"></script>
-  <script src="/assets/tests.amd.js"></script>
-  <script src="/assets/test-support.js"></script>
+  <script src="/testem/qunit.js"></script>
+  <script src="/testem.js"></script>
+  <script>
+  Testem.on('all-test-results', function(results){
+    var xhr = new XMLHttpRequest()
+    xhr.open('POST', 'http://localhost:7358/')
+    xhr.send(JSON.stringify(window.__coverage__))
+  })
+  </script>
+  <script src="../build/assets/loader.js"></script>
+  <script src="../build/assets/vendor.js"></script>
+  <script src="../build/instrumented/tests.amd.js"></script>
+  <script src="../build/assets/test-support.js"></script>
 </body>
 </html>
