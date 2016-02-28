@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Orbit.js by penne12</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Orbit.js</h1>
+      <h2 class="project-tagline">Simplify the data layer in your client-side applications.</h2>
+      <a href="https://github.com/penne12/orbit.js" class="btn">View on GitHub</a>
+      <a href="https://github.com/penne12/orbit.js/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/penne12/orbit.js/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="orbitjs--" class="anchor" href="#orbitjs--" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Orbit.js <a href="http://travis-ci.org/orbitjs/orbit.js"><img src="https://secure.travis-ci.org/orbitjs/orbit.js.png?branch=master" alt="Build Status"></a> <a href="https://gitter.im/orbitjs/orbit.js?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge&amp;utm_content=badge"><img src="https://badges.gitter.im/Join%20Chat.svg" alt="Join the chat at https://gitter.im/orbitjs/orbit.js"></a>
+</h1>
+
+<p>Orbit is a standalone library for coordinating access to data sources
+and keeping their contents synchronized.</p>
+
+<p>Orbit provides a foundation for building advanced features in client-side
+applications such as offline operation, maintenance and synchronization of local
+caches, undo / redo stacks and ad hoc editing contexts.</p>
+
+<p>Orbit relies heavily on promises, events and low-level transforms.</p>
+
+<h2>
+<a id="goals" class="anchor" href="#goals" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Goals</h2>
+
+<ul>
+<li><p>Support any number of different data sources in an application and
+provide access to them through common interfaces.</p></li>
+<li><p>Allow for the fulfillment of requests by different sources, including
+the ability to specify priority and fallback plans.</p></li>
+<li><p>Allow records to simultaneously exist in different states across sources.</p></li>
+<li><p>Coordinate transformations across sources. Handle merges automatically
+where possible but allow for complete custom control.</p></li>
+<li><p>Allow for blocking and non-blocking transformations.</p></li>
+<li><p>Allow for synchronous and asynchronous requests.</p></li>
+<li><p>Support transactions and undo/redo by tracking inverses of operations.</p></li>
+<li><p>Work with plain JavaScript objects.</p></li>
+</ul>
+
+<h2>
+<a id="dependencies" class="anchor" href="#dependencies" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Dependencies</h2>
+
+<p>Orbit.js has no specific external run-time dependencies, but it must be used in an
+environment that includes an implementation of the <a href="http://promises-aplus.github.io/promises-spec/">Promises/A+</a>. If you wish to support legacy browsers, you will need to include a library
+such as <a href="https://github.com/tildeio/rsvp.js">RSVP</a>.</p>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>Orbit can be installed with <a href="http://bower.io">Bower</a>:</p>
+
+<pre><code>bower install orbit.js
+</code></pre>
+
+<p><a href="https://github.com/orbitjs/orbit-builds">A separate shim repo</a> is
+maintained for builds.</p>
+
+<h2>
+<a id="configuration" class="anchor" href="#configuration" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Configuration</h2>
+
+<p>You'll need to configure Orbit to recognize any applicable dependencies.</p>
+
+<p>Orbit defaults to using the global <code>Promise</code> constructor, if it exists. If your environment
+does not implement Promises, or if you wish to use another Promise implementation, configure
+your promise library's <code>Promise</code> constructor as follows:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-smi">Orbit</span>.<span class="pl-smi">Promise</span> <span class="pl-k">=</span> <span class="pl-c1">RSVP</span>.<span class="pl-smi">Promise</span>;</pre></div>
+
+<p>If you're using an Orbit source that relies on an <code>ajax</code> method (such as
+<code>JSONAPISource</code>), configure it as follows:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-smi">Orbit</span>.<span class="pl-smi">ajax</span> <span class="pl-k">=</span> <span class="pl-smi">jQuery</span>.<span class="pl-smi">ajax</span>;</pre></div>
+
+<p>Other sources may have other configuration requirements.</p>
+
+<h2>
+<a id="how-does-orbit-work" class="anchor" href="#how-does-orbit-work" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>How does Orbit work?</h2>
+
+<p>Orbit requires that every data source support one or more common interfaces.
+These interfaces define how data can be both <em>accessed</em> and <em>transformed</em>.</p>
+
+<p>The methods for accessing and transforming data return promises. These promises
+might be fulfilled synchronously or asynchronously. Once fulfilled, events
+are triggered to indicate success or failure. Any event listeners can engage
+with an event by returning a promise. In this way, multiple data sources can be
+involved in a single action.</p>
+
+<p>Standard connectors are supplied for listening to events on a data source and
+calling corresponding actions on a target. These connectors can be blocking
+(i.e. they don't resolve until all associated actions are resolved) or
+non-blocking (i.e. associated actions are resolved in the background without
+blocking the flow of the application). Connectors can be used to enable
+uni or bi-directional flow of data between sources.</p>
+
+<h2>
+<a id="orbit-common-library" class="anchor" href="#orbit-common-library" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Orbit Common Library</h2>
+
+<p>The Orbit Common library (namespaced <code>OC</code> by default) contains a set of
+compatible data sources, currently including: an in-memory cache, a local
+storage source, and a source for accessing <a href="http://jsonapi.org/">JSON API</a>
+compliant APIs with AJAX.</p>
+
+<p>You can define your own data sources that will work with Orbit as long as they
+support Orbit's interfaces. You can either make sources compliant with the
+Orbit Common library or use Orbit's base interfaces to create an independent
+collection of compatible sources.</p>
+
+<h2>
+<a id="simple-example" class="anchor" href="#simple-example" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Simple Example</h2>
+
+<div class="highlight highlight-source-js"><pre>
+  <span class="pl-c">// Create data sources with a common schema</span>
+  <span class="pl-k">var</span> schema <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">OC.Schema</span>({
+    modelDefaults<span class="pl-k">:</span> {
+      keys<span class="pl-k">:</span> {
+        __id<span class="pl-k">:</span> { primaryKey<span class="pl-k">:</span> <span class="pl-c1">true</span>, defaultValue<span class="pl-k">:</span> <span class="pl-smi">Orbit</span>.<span class="pl-smi">uuid</span> }
+      },
+    },
+    models<span class="pl-k">:</span> {
+      planet<span class="pl-k">:</span> {
+        attributes<span class="pl-k">:</span> {
+          name<span class="pl-k">:</span> {type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>string<span class="pl-pds">'</span></span>},
+          classification<span class="pl-k">:</span> {type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>string<span class="pl-pds">'</span></span>}
+        }
+      }
+    }
+  });
+  <span class="pl-k">var</span> memorySource <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">OC.MemorySource</span>(schema);
+  <span class="pl-k">var</span> restSource <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">OC.JSONAPISource</span>(schema);
+  <span class="pl-k">var</span> localSource <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">OC.LocalStorageSource</span>(schema);
+
+  <span class="pl-c">// Connect MemorySource -&gt; LocalStorageSource (using the default blocking strategy)</span>
+  <span class="pl-k">var</span> memToLocalConnector <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.TransformConnector</span>(memorySource, localSource);
+
+  <span class="pl-c">// Connect MemorySource &lt;-&gt; JSONAPISource (using the default blocking strategy)</span>
+  <span class="pl-k">var</span> memToRestConnector <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.TransformConnector</span>(memorySource, restSource);
+  <span class="pl-k">var</span> restToMemConnector <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.TransformConnector</span>(restSource, memorySource);
+
+  <span class="pl-c">// Add a record to the memory source</span>
+  <span class="pl-smi">memorySource</span>.<span class="pl-c1">add</span>(<span class="pl-s"><span class="pl-pds">'</span>planet<span class="pl-pds">'</span></span>, {name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Jupiter<span class="pl-pds">'</span></span>, classification<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>gas giant<span class="pl-pds">'</span></span>}).<span class="pl-en">then</span>(
+    <span class="pl-k">function</span>(<span class="pl-smi">planet</span>) {
+      <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>Planet added - <span class="pl-pds">'</span></span>, <span class="pl-smi">planet</span>.<span class="pl-c1">name</span>, <span class="pl-s"><span class="pl-pds">'</span>(id:<span class="pl-pds">'</span></span>, <span class="pl-smi">planet</span>.<span class="pl-c1">id</span>, <span class="pl-s"><span class="pl-pds">'</span>)<span class="pl-pds">'</span></span>);
+    }
+  );
+
+  <span class="pl-c">// Log the transforms in all sources</span>
+  <span class="pl-smi">memorySource</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>didTransform<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">operation</span>, <span class="pl-smi">inverse</span>) {
+    <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>memorySource<span class="pl-pds">'</span></span>, operation);
+  });
+
+  <span class="pl-smi">localSource</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>didTransform<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">operation</span>, <span class="pl-smi">inverse</span>) {
+    <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>localSource<span class="pl-pds">'</span></span>, operation);
+  });
+
+  <span class="pl-smi">restSource</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>didTransform<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">operation</span>, <span class="pl-smi">inverse</span>) {
+    <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>restSource<span class="pl-pds">'</span></span>, operation);
+  });
+
+  <span class="pl-c">// CONSOLE OUTPUT</span>
+  <span class="pl-c">//</span>
+  <span class="pl-c">// memorySource {op: 'add', path: 'planet/1', value: {__id: 1, name: 'Jupiter', classification: 'gas giant'}}</span>
+  <span class="pl-c">// localSource  {op: 'add', path: 'planet/1', value: {__id: 1, name: 'Jupiter', classification: 'gas giant'}}</span>
+  <span class="pl-c">// restSource   {op: 'add', path: 'planet/1', value: {__id: 1, id: 12345, name: 'Jupiter', classification: 'gas giant'}}</span>
+  <span class="pl-c">// memorySource {op: 'add', path: 'planet/1/id', value: 12345}</span>
+  <span class="pl-c">// localSource  {op: 'add', path: 'planet/1/id', value: 12345}</span>
+  <span class="pl-c">// Planet added - Jupiter (id: 12345)</span></pre></div>
+
+<p>In this example, we've created three separate sources and connected them with
+transform connectors that are <em>blocking</em>. In other words, the promise returned
+from an action won't be fulfilled until every event listener that engages with
+it (by returning a promise) has been fulfilled.</p>
+
+<p>In this case, we're adding a record to the memory source, which the connectors
+help duplicate in both the REST source and local storage. The REST source returns
+an <code>id</code> from the server, which is then propagated back to the memory source and
+then the local storage source.</p>
+
+<p>Note that we could also connect the sources with <em>non-blocking</em> connectors with
+the <code>blocking: false</code> option:</p>
+
+<div class="highlight highlight-source-js"><pre>  <span class="pl-c">// Connect MemorySource -&gt; LocalStorageSource (non-blocking)</span>
+  <span class="pl-k">var</span> memToLocalConnector <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.TransformConnector</span>(memorySource, localSource, {blocking<span class="pl-k">:</span> <span class="pl-c1">false</span>});
+
+  <span class="pl-c">// Connect MemorySource &lt;-&gt; JSONAPISource (non-blocking)</span>
+  <span class="pl-k">var</span> memToRestConnector <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.TransformConnector</span>(memorySource, restSource, {blocking<span class="pl-k">:</span> <span class="pl-c1">false</span>});
+  <span class="pl-k">var</span> restToMemConnector <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.TransformConnector</span>(restSource, memorySource, {blocking<span class="pl-k">:</span> <span class="pl-c1">false</span>});</pre></div>
+
+<p>In this case, the promise generated from <code>memorySource.add</code> will be resolved
+immediately, after which records will be asynchronously created in the REST
+source and local storage. Any differences, such as an <code>id</code> returned from the
+server, will be automatically patched back to the record in the memory source.</p>
+
+<h2>
+<a id="interfaces" class="anchor" href="#interfaces" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Interfaces</h2>
+
+<p>The primary interfaces provided by Orbit are:</p>
+
+<ul>
+<li><p><code>Requestable</code> - for managing requests for data via methods such as <code>find</code>,
+<code>create</code>, <code>update</code> and <code>destroy</code>.</p></li>
+<li><p><code>Transformable</code> - for keeping data sources in sync through low level
+transformations which follow the JSON PATCH spec detailed in
+<a href="http://tools.ietf.org/html/rfc6902">RFC 6902</a>.</p></li>
+</ul>
+
+<p>These interfaces can extend (i.e. be "mixed into") your data sources. They can
+be used together or in isolation.</p>
+
+<h3>
+<a id="requestable" class="anchor" href="#requestable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Requestable</h3>
+
+<p>The <code>Requestable</code> interface provides a mechanism to define custom "action"
+methods on an object or prototype. Actions might typically include <code>find</code>,
+<code>add</code>, <code>update</code>, <code>patch</code> and <code>remove</code>, although the number and names of actions
+can be completely customized.</p>
+
+<p>The <code>Requestable</code> interface can extend an object or prototype as follows:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> source <span class="pl-k">=</span> {};
+<span class="pl-smi">Orbit</span>.<span class="pl-smi">Requestable</span>.<span class="pl-en">extend</span>(source);</pre></div>
+
+<p>This will make your object <code>Evented</code> (see below) and create a single action,
+<code>find</code>, by default. You can also specify alternative actions as follows:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> source <span class="pl-k">=</span> {};
+<span class="pl-smi">Orbit</span>.<span class="pl-smi">Requestable</span>.<span class="pl-en">extend</span>(source, [<span class="pl-s"><span class="pl-pds">'</span>find<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>add<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>update<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>patch<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>remove<span class="pl-pds">'</span></span>]);</pre></div>
+
+<p>Or you can add actions later with <code>Orbit.Requestable.defineAction()</code>:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> source <span class="pl-k">=</span> {};
+<span class="pl-smi">Orbit</span>.<span class="pl-smi">Requestable</span>.<span class="pl-en">extend</span>(source); <span class="pl-c">// defines 'find' by default</span>
+<span class="pl-smi">Orbit</span>.<span class="pl-smi">Requestable</span>.<span class="pl-en">defineAction</span>(source, [<span class="pl-s"><span class="pl-pds">'</span>add<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>update<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>remove<span class="pl-pds">'</span></span>]);
+<span class="pl-smi">Orbit</span>.<span class="pl-smi">Requestable</span>.<span class="pl-en">defineAction</span>(source, <span class="pl-s"><span class="pl-pds">'</span>patch<span class="pl-pds">'</span></span>);</pre></div>
+
+<p>In order to fulfill the contract of an action, define a
+default "handler" method with the name of the action preceded by an underscore
+(e.g. <code>_find</code>). This handler performs the action and returns a
+promise. Here's a simplistic example:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-c1">source</span>.<span class="pl-en">_find</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">type</span>, <span class="pl-smi">id</span>) {
+  <span class="pl-k">return</span> <span class="pl-k">new</span> <span class="pl-en">RSVP.Promise</span>(<span class="pl-k">function</span>(<span class="pl-smi">resolve</span>, <span class="pl-smi">reject</span>){
+    <span class="pl-k">if</span> (<span class="pl-smi">source</span>.<span class="pl-smi">_data</span>[type] <span class="pl-k">&amp;&amp;</span> <span class="pl-smi">source</span>.<span class="pl-smi">_data</span>[type][id]) {
+      <span class="pl-en">resolve</span>(<span class="pl-smi">source</span>.<span class="pl-smi">_data</span>[type][id]);
+    } <span class="pl-k">else</span> {
+      <span class="pl-en">reject</span>(type <span class="pl-k">+</span> <span class="pl-s"><span class="pl-pds">'</span> not found<span class="pl-pds">'</span></span>);
+    }
+  });
+};</pre></div>
+
+<p>Actions combine promise-based return values with an event-driven flow.
+Events can be used to coordinate multiple handlers interested in participating
+with or simply observing the resolution of an action.</p>
+
+<p>The following events are associated with an action (<code>find</code> in this case):</p>
+
+<ul>
+<li><p><code>assistFind</code> - triggered prior to calling the default <code>_find</code> handler.
+Listeners can optionally return a promise. If any promise resolves
+successfully, its resolved value will be used as the return value of
+<code>find</code>, and no further listeners will called.</p></li>
+<li><p><code>rescueFind</code> -  if <code>assistFind</code> and the default <code>_find</code> method fail
+to resolve, then <code>rescueFind</code> will be triggered. Again, listeners can
+optionally return a promise. If any promise resolves successfully,
+its resolved value will be used as the return value of <code>find</code>, and no further
+listeners will called.</p></li>
+<li><p><code>didFind</code> - Triggered upon the successful resolution of the action by any
+handler. Any promises returned by event listeners will be settled in series
+before proceeding.</p></li>
+<li><p><code>didNotFind</code> - Triggered when an action can't be resolved by any handler.
+Any promises returned by event listeners will be settled in series before
+proceeding.</p></li>
+</ul>
+
+<p>Note that the arguments for actions can be customized for your application.
+Orbit will simply pass them through regardless of their number and type. You
+will typically want actions of the same name (e.g. <code>find</code>) to accept the same
+arguments across your data sources.</p>
+
+<p>Let's take a look at how this could all work:</p>
+
+<div class="highlight highlight-source-js"><pre>
+<span class="pl-c">// Create some new sources - assume their prototypes are already `Requestable`</span>
+<span class="pl-k">var</span> memorySource <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">OC.MemorySource</span>();
+<span class="pl-k">var</span> restSource <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">OC.JSONAPISource</span>();
+<span class="pl-k">var</span> localSource <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">OC.LocalStorageSource</span>();
+
+<span class="pl-c">////// Connect the sources via events</span>
+
+<span class="pl-c">// Check local storage before making a remote call</span>
+<span class="pl-smi">restSource</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>assistFind<span class="pl-pds">'</span></span>, <span class="pl-smi">localSource</span>.<span class="pl-smi">find</span>);
+
+<span class="pl-c">// If the in-memory source can't find the record, query our rest server</span>
+<span class="pl-smi">memorySource</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>rescueFind<span class="pl-pds">'</span></span>, <span class="pl-smi">restSource</span>.<span class="pl-smi">find</span>);
+
+<span class="pl-c">// Audit success / failure</span>
+<span class="pl-smi">memorySource</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>didFind<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">type</span>, <span class="pl-smi">id</span>, <span class="pl-smi">record</span>) {
+    <span class="pl-en">audit</span>(<span class="pl-s"><span class="pl-pds">'</span>find<span class="pl-pds">'</span></span>, type, id, <span class="pl-c1">true</span>);
+});
+<span class="pl-smi">memorySource</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>didNotFind<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">type</span>, <span class="pl-smi">id</span>, <span class="pl-smi">error</span>) {
+    <span class="pl-en">audit</span>(<span class="pl-s"><span class="pl-pds">'</span>find<span class="pl-pds">'</span></span>, type, id, <span class="pl-c1">false</span>);
+});
+
+<span class="pl-c">////// Perform the action</span>
+
+<span class="pl-smi">memorySource</span>.<span class="pl-c1">find</span>(<span class="pl-s"><span class="pl-pds">'</span>contact<span class="pl-pds">'</span></span>, <span class="pl-c1">1</span>).<span class="pl-en">then</span>(<span class="pl-k">function</span>(<span class="pl-smi">contact</span>) {
+  <span class="pl-c">// do something with the contact</span>
+}, <span class="pl-k">function</span>(<span class="pl-smi">error</span>) {
+  <span class="pl-c">// there was a problem</span>
+});</pre></div>
+
+<p>Configuration can (and probably should) be done well in advance of actions
+being called. You essentially want to hook up the wiring between sources and
+then restrict your application's direct access to most of them. This greatly
+simplifies your application code: instead of chaining together a large number
+of promises that include multiple sources in every call,
+you can interact with a single source of truth (typically an in-memory data
+source).</p>
+
+<h3>
+<a id="transformable" class="anchor" href="#transformable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Transformable</h3>
+
+<p>Although the <code>Requestable</code> interface can help multiple sources coordinate in
+fulfilling a request, it's not sufficient to keep data sources synchronized.
+When one source fields a request, other sources may need to be notified of
+the precise data changes brought about in that source,
+so that they can all stay synchronized. That's where the <code>Transformable</code>
+interface comes in...</p>
+
+<p>The <code>Transformable</code> interface provides a single method, <code>transform</code>, which can
+be used to change the contents of a source. Transformations must follow the
+JSON PATCH spec detailed in
+<a href="http://tools.ietf.org/html/rfc6902">RFC 6902</a>.
+They must specify an operation (<code>add</code>, <code>remove</code>, or <code>replace</code>), a
+path, and a value. For instance, the following transformations add, patch and
+then remove a record:</p>
+
+<div class="highlight highlight-source-js"><pre>{op<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>add<span class="pl-pds">'</span></span>, path<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>planet/1<span class="pl-pds">'</span></span>, value<span class="pl-k">:</span> {__id<span class="pl-k">:</span> <span class="pl-c1">1</span>, name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Jupiter<span class="pl-pds">'</span></span>, classification<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>gas giant<span class="pl-pds">'</span></span>}
+{op<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>replace<span class="pl-pds">'</span></span>, path<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>planet/1/name<span class="pl-pds">'</span></span>, value<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Earth<span class="pl-pds">'</span></span>}
+{op<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>remove<span class="pl-pds">'</span></span>, path<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>planet/1<span class="pl-pds">'</span></span>}</pre></div>
+
+<p>The <code>Transformable</code> interface can extend an object or prototype as follows:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> source <span class="pl-k">=</span> {};
+<span class="pl-smi">Orbit</span>.<span class="pl-smi">Transformable</span>.<span class="pl-en">extend</span>(source);</pre></div>
+
+<p>This will ensure that your source is <code>Evented</code> (see below). It also adds a
+<code>transform</code> method. In order to fulfill the <code>transform</code> method, your source
+should implement a <code>_transform</code> method that performs the transform and returns
+a promise if the transformation is asynchronous.</p>
+
+<p>It's important to note that the requested transform may not match the actual
+transform applied to a source. Therefore, each source should call <code>didTransform</code>
+for any transforms that actually take place. This method triggers the
+<code>didTransform</code> event, which returns the operation and an array of inverse
+operations.</p>
+
+<p><code>transform</code> may be called with a single transform operation, or an array of
+operations. Any number of <code>didTransform</code> events may be triggered as a result.</p>
+
+<p>Transforms will be queued and performed serially in the order requested.</p>
+
+<h2>
+<a id="transformconnector" class="anchor" href="#transformconnector" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>TransformConnector</h2>
+
+<p>A <code>TransformConnector</code> watches a transformable source and propagates any
+transforms to a transformable target.</p>
+
+<p>Each connector is "one way", so bi-directional synchronization between sources
+requires the creation of two connectors.</p>
+
+<p>Connectors can be "blocking" or "non-blocking". The difference is that
+"blocking" connectors will return a promise to the <code>didTransform</code> event, which
+will prevent the original transform from resolving until the promise itself has
+resolved. "Non-blocking" transforms do not block the resolution of the original
+transform - asynchronous actions are performed afterward.</p>
+
+<p>If the target of a connector is busy processing transformations, then the
+connector will queue operations until the target is free. This ensures that the
+target's state is as up to date as possible before transformations proceed.</p>
+
+<p>The connector's <code>transform</code> method actually applies transforms to its target.
+This method attempts to retrieve the current value at the path of the
+transformation and resolves any conflicts with the connector's
+<code>resolveConflicts</code> method. By default, a simple differential is applied to the
+target, although both <code>transform</code> and <code>resolveConflicts</code> can be overridden to
+apply an alternative differencing algorithm.</p>
+
+<h2>
+<a id="requestconnector" class="anchor" href="#requestconnector" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>RequestConnector</h2>
+
+<p>A <code>RequestConnector</code> observes requests made to a primary source and allows a
+secondary source to either "assist" or "rescue" those requests.</p>
+
+<p>The <code>mode</code> of a <code>RequestConnector</code> can be either <code>"rescue"</code> or <code>"assist"</code>
+(<code>"rescue"</code> is the default).</p>
+
+<p>In <code>"rescue"</code> mode, the secondary source will only be called upon to fulfill
+a request if the primary source fails to do so.</p>
+
+<p>In <code>"assist"</code> mode, the secondary source will be called upon to fulfill a
+request before the primary source. Only if the secondary source fails to
+fulfill the request will the primary source be called upon to do so.</p>
+
+<p>Unlike a <code>TransformConnector</code>, a <code>RequestConnector</code> always operates in
+"blocking" mode. In other words, promises are always settled (either succeeding
+or failing) before the connector proceeds.</p>
+
+<h2>
+<a id="document" class="anchor" href="#document" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Document</h2>
+
+<p><code>Document</code> is a complete implementation of the JSON PATCH spec detailed in
+<a href="http://tools.ietf.org/html/rfc6902">RFC 6902</a>.</p>
+
+<p>It can be manipulated via a <code>transform</code> method that accepts an <code>operation</code>, or
+with methods <code>add</code>, <code>remove</code>, <code>replace</code>, <code>move</code>, <code>copy</code> and <code>test</code>.</p>
+
+<p>Data at a particular path can be retrieved from a <code>Document</code> with <code>retrieve()</code>.</p>
+
+<h2>
+<a id="notifications-and-events" class="anchor" href="#notifications-and-events" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Notifications and Events</h2>
+
+<p>Orbit also contains a couple classes for handling notifications and events.
+These will likely be separated into one or more microlibs.</p>
+
+<h3>
+<a id="notifier" class="anchor" href="#notifier" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Notifier</h3>
+
+<p>The <code>Notifier</code> class can emit messages to an array of subscribed listeners.
+Here's a simple example:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> notifier <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.Notifier</span>();
+<span class="pl-smi">notifier</span>.<span class="pl-en">addListener</span>(<span class="pl-k">function</span>(<span class="pl-smi">message</span>) {
+  <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">"</span>I heard <span class="pl-pds">"</span></span> <span class="pl-k">+</span> message);
+});
+<span class="pl-smi">notifier</span>.<span class="pl-en">addListener</span>(<span class="pl-k">function</span>(<span class="pl-smi">message</span>) {
+  <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">"</span>I also heard <span class="pl-pds">"</span></span> <span class="pl-k">+</span> message);
+});
+
+<span class="pl-smi">notifier</span>.<span class="pl-en">emit</span>(<span class="pl-s"><span class="pl-pds">'</span>hello<span class="pl-pds">'</span></span>); <span class="pl-c">// logs "I heard hello" and "I also heard hello"</span></pre></div>
+
+<p>Notifiers can also poll listeners with an event and return their responses:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> dailyQuestion <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Orbit.Notifier</span>();
+<span class="pl-smi">dailyQuestion</span>.<span class="pl-en">addListener</span>(<span class="pl-k">function</span>(<span class="pl-smi">question</span>) {
+  <span class="pl-k">if</span> (question <span class="pl-k">===</span> <span class="pl-s"><span class="pl-pds">'</span>favorite food?<span class="pl-pds">'</span></span>) <span class="pl-k">return</span> <span class="pl-s"><span class="pl-pds">'</span>beer<span class="pl-pds">'</span></span>;
+});
+<span class="pl-smi">dailyQuestion</span>.<span class="pl-en">addListener</span>(<span class="pl-k">function</span>(<span class="pl-smi">question</span>) {
+  <span class="pl-k">if</span> (question <span class="pl-k">===</span> <span class="pl-s"><span class="pl-pds">'</span>favorite food?<span class="pl-pds">'</span></span>) <span class="pl-k">return</span> <span class="pl-s"><span class="pl-pds">'</span>wasabi almonds<span class="pl-pds">'</span></span>;
+});
+<span class="pl-smi">dailyQuestion</span>.<span class="pl-en">addListener</span>(<span class="pl-k">function</span>(<span class="pl-smi">question</span>) {
+  <span class="pl-c">// this listener doesn't return anything, and therefore won't participate</span>
+  <span class="pl-c">// in the poll</span>
+});
+
+<span class="pl-smi">dailyQuestion</span>.<span class="pl-en">poll</span>(<span class="pl-s"><span class="pl-pds">'</span>favorite food?<span class="pl-pds">'</span></span>); <span class="pl-c">// returns ['beer', 'wasabi almonds']</span></pre></div>
+
+<p>Calls to <code>emit</code> and <code>poll</code> will send along all of their arguments.</p>
+
+<h3>
+<a id="evented" class="anchor" href="#evented" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Evented</h3>
+
+<p>The <code>Evented</code> interface uses notifiers to add events to an object. Like
+notifiers, events will send along all of their arguments to subscribed
+listeners.</p>
+
+<p>The <code>Evented</code> interface can extend an object or prototype as follows:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> source <span class="pl-k">=</span> {};
+<span class="pl-smi">Orbit</span>.<span class="pl-smi">Evented</span>.<span class="pl-en">extend</span>(source);</pre></div>
+
+<p>Listeners can then register themselves for particular events with <code>on</code>:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> <span class="pl-en">listener1</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">message</span>) {
+      <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>listener1 heard <span class="pl-pds">'</span></span> <span class="pl-k">+</span> message);
+    },
+    <span class="pl-en">listener2</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">message</span>) {
+      <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>listener2 heard <span class="pl-pds">'</span></span> <span class="pl-k">+</span> message);
+    };
+
+<span class="pl-smi">source</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>greeting<span class="pl-pds">'</span></span>, listener1);
+<span class="pl-smi">source</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>greeting<span class="pl-pds">'</span></span>, listener2);
+
+<span class="pl-smi">evented</span>.<span class="pl-en">emit</span>(<span class="pl-s"><span class="pl-pds">'</span>greeting<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>hello<span class="pl-pds">'</span></span>); <span class="pl-c">// logs "listener1 heard hello" and</span>
+                                   <span class="pl-c">//      "listener2 heard hello"</span></pre></div>
+
+<p>Listeners can be unregistered from events at any time with <code>off</code>:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-smi">source</span>.<span class="pl-en">off</span>(<span class="pl-s"><span class="pl-pds">'</span>greeting<span class="pl-pds">'</span></span>, listener2);</pre></div>
+
+<p>A listener can register itself for multiple events at once:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-smi">source</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>greeting salutation<span class="pl-pds">'</span></span>, listener2);</pre></div>
+
+<p>And multiple events can be triggered sequentially at once,
+assuming that you want to pass them all the same arguments:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-smi">source</span>.<span class="pl-en">emit</span>(<span class="pl-s"><span class="pl-pds">'</span>greeting salutation<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>hello<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>bonjour<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>guten tag<span class="pl-pds">'</span></span>);</pre></div>
+
+<p>Last but not least, listeners can be polled, just like in the notifier example
+(note that spaces can't be used in event names):</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-smi">source</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>question<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">question</span>) {
+  <span class="pl-k">if</span> (question <span class="pl-k">===</span> <span class="pl-s"><span class="pl-pds">'</span>favorite food?<span class="pl-pds">'</span></span>) <span class="pl-k">return</span> <span class="pl-s"><span class="pl-pds">'</span>beer<span class="pl-pds">'</span></span>;
+});
+
+<span class="pl-smi">source</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>question<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">question</span>) {
+  <span class="pl-k">if</span> (question <span class="pl-k">===</span> <span class="pl-s"><span class="pl-pds">'</span>favorite food?<span class="pl-pds">'</span></span>) <span class="pl-k">return</span> <span class="pl-s"><span class="pl-pds">'</span>wasabi almonds<span class="pl-pds">'</span></span>;
+});
+
+<span class="pl-smi">source</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>question<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">question</span>) {
+  <span class="pl-c">// this listener doesn't return anything, and therefore won't participate</span>
+  <span class="pl-c">// in the poll</span>
+});
+
+<span class="pl-smi">source</span>.<span class="pl-en">poll</span>(<span class="pl-s"><span class="pl-pds">'</span>question<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>favorite food?<span class="pl-pds">'</span></span>); <span class="pl-c">// returns ['beer', 'wasabi almonds']</span></pre></div>
+
+<h2>
+<a id="contributing" class="anchor" href="#contributing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Contributing</h2>
+
+<h3>
+<a id="installing-orbit" class="anchor" href="#installing-orbit" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installing Orbit</h3>
+
+<p>Install the CLI for <a href="https://github.com/broccolijs/broccoli">Broccoli</a> globally:</p>
+
+<pre><code>npm install -g broccoli-cli
+</code></pre>
+
+<p>Install the rest of Orbit's dependencies:</p>
+
+<pre><code>npm install
+</code></pre>
+
+<h3>
+<a id="building-orbit" class="anchor" href="#building-orbit" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Building Orbit</h3>
+
+<p>Distributable versions of Orbit can be built to the <code>/build</code> directory by
+running:</p>
+
+<pre><code>npm run build
+</code></pre>
+
+<h3>
+<a id="testing-orbit" class="anchor" href="#testing-orbit" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Testing Orbit</h3>
+
+<h4>
+<a id="ci-testing" class="anchor" href="#ci-testing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>CI Testing</h4>
+
+<p>Orbit can be tested in CI mode by running:</p>
+
+<pre><code>npm test
+</code></pre>
+
+<p>Or directly with testem (useful for configuring options):</p>
+
+<pre><code>testem ci
+</code></pre>
+
+<h4>
+<a id="browser-testing" class="anchor" href="#browser-testing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Browser Testing</h4>
+
+<p>Orbit can be tested within a browser
+(at <a href="http://localhost:4200/tests/">http://localhost:4200/tests/</a>) by running:</p>
+
+<pre><code>npm start
+</code></pre>
+
+<p>Or directly with <code>broccoli</code> (useful for configuring the port, etc.):</p>
+
+<pre><code>broccoli serve
+</code></pre>
+
+<h3>
+<a id="generating-documentation" class="anchor" href="#generating-documentation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Generating Documentation</h3>
+
+<p>Generate docs in the <code>/docs</code> directory:</p>
+
+<pre><code>npm run docs
+</code></pre>
+
+<h2>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>License</h2>
+
+<p>Copyright 2014 Cerebris Corporation. MIT License (see LICENSE for details).</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/penne12/orbit.js">Orbit.js</a> is maintained by <a href="https://github.com/penne12">penne12</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
